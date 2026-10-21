@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pessoa ou IA?</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1c1c1c;--mute:#6b6b6b;--line:#e3e1dc;--acc:#2f5bea;--acc-ink:#fff;--ok:#1f8a4c}
+@media (prefers-color-scheme:dark){:root{--bg:#121212;--card:#1d1d1d;--ink:#eee;--mute:#a0a0a0;--line:#333;--acc:#6d8cff;--acc-ink:#0b0b0b;--ok:#4cc27f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:28px 16px 48px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+h1{font-size:1.6rem;margin:0 0 8px}
+p{margin:0 0 14px}
+.mute{color:var(--mute);font-size:.92rem}
+button{font:inherit;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:14px 16px;cursor:pointer;width:100%}
+button.pri{background:var(--acc);color:var(--acc-ink);border-color:var(--acc);font-weight:600}
+button:disabled{opacity:.4;cursor:default}
+button.sel{outline:3px solid var(--acc)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.notas{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0 4px}
+.notas button{padding:12px 0}
+.esc{display:flex;justify-content:space-between;font-size:.8rem;color:var(--mute);margin-bottom:14px}
+.bar{height:6px;background:var(--line);border-radius:3px;margin-bottom:18px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s}
+audio{width:100%;margin:6px 0 4px}
+select{font:inherit;width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:4px 0 16px}
+.hide{display:none}
+.creditos{font-size:.8rem;color:var(--mute);margin-top:18px}
+.creditos li{margin-bottom:4px}
+</style>
+</head>
+<body>
+<main>
+  <section id="inicio" class="card">
+    <h1>Pessoa ou IA?</h1>
+    <p>Você vai ouvir alguns áudios curtos. Alguns são de pessoas de verdade, outros foram gerados por inteligência artificial.</p>
+    <p>Para cada um, diga o que acha que é e o quanto soou natural. Leva uns 2 minutos.</p>
+    <p class="mute">Use fone se puder. Não coletamos nome, e-mail nem nenhum dado pessoal.</p>
+    <label class="mute" for="idade">Faixa de idade (opcional)</label>
+    <select id="idade">
+      <option value="">Prefiro não dizer</option>
+      <option>até 17</option><option>18–24</option><option>25–34</option>
+      <option>35–49</option><option>50+</option>
+    </select>
+    <button class="pri" id="comecar">Começar</button>
+  </section>
+
+  <section id="teste" class="hide">
+    <div class="bar"><i id="prog"></i></div>
+    <div class="card">
+      <p class="mute" id="contador"></p>
+      <audio id="player" controls preload="auto"></audio>
+      <p class="mute" id="dica">Ouça o áudio até o fim para responder.</p>
+      <p><strong>Isso é uma pessoa ou IA?</strong></p>
+      <div class="row">
+        <button data-r="pessoa" disabled>Pessoa</button>
+        <button data-r="ia" disabled>IA</button>
+      </div>
+      <p><strong>Quão natural soou?</strong></p>
+      <div class="notas" id="notas"></div>
+      <div class="esc"><span>1 · artificial</span><span>5 · totalmente natural</span></div>
+      <button class="pri" id="proximo" disabled>Próximo</button>
+    </div>
+  </section>
+
+  <section id="fim" class="card hide">
+    <h1>Obrigado!</h1>
+    <p>Suas respostas foram registradas. Se quiser ajudar mais, mande o link pra alguém.</p>
+    <ul class="creditos" id="creditos"></ul>
+  </section>
+</main>
+<script>
+const FORM = "https://docs.google.com/forms/d/e/1FAIpQLSfaNRp1_5Ikb8mvZ149yYE3OYtaXa5nQRVp5MxmtmRSA1W0-w/formResponse";
+const E = {sessao:"entry.321888548", clipe:"entry.1857953773", resposta:"entry.12022518",
+           nota:"entry.1720958573", idade:"entry.36553707", ordem:"entry.1771056562"};
+const MAX_CLIPES = 8;
+const $ = s => document.querySelector(s);
+const sessao = Math.random().toString(36).slice(2, 10);
+let clipes = [], i = 0, resp = null, nota = null;
+
+function embaralha(a){ const b = a.slice(); for(let k=b.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[b[k],b[j]]=[b[j],b[k]];} return b; }
+
+function envia(dados){
+  const corpo = new URLSearchParams();
+  for (const [k,v] of Object.entries(dados)) corpo.append(E[k], v);
+  return fetch(FORM, {method:"POST", mode:"no-cors", body:corpo}).catch(() => {});
+}
+
+function botoesNota(){
+  const box = $("#notas"); box.innerHTML = "";
+  for (let n=1;n<=5;n++){
+    const b = document.createElement("button"); b.textContent = n; b.dataset.n = n; b.disabled = true;
+    b.onclick = () => { nota = n; marca("#notas button", b); confere(); };
+    box.appendChild(b);
+  }
+}
+function marca(sel, alvo){ document.querySelectorAll(sel).forEach(b => b.classList.toggle("sel", b === alvo)); }
+function confere(){ $("#proximo").disabled = !(resp && nota); }
+function libera(on){ document.querySelectorAll("[data-r], #notas button").forEach(b => b.disabled = !on); }
+
+function mostra(){
+  resp = null; nota = null; botoesNota(); libera(false); confere();
+  document.querySelectorAll("[data-r]").forEach(b => b.classList.remove("sel"));
+  $("#contador").textContent = `Áudio ${i+1} de ${clipes.length}`;
+  $("#prog").style.width = `${(i/clipes.length)*100}%`;
+  $("#dica").classList.remove("hide");
+  const p = $("#player"); p.src = clipes[i].src; p.load();
+}
+
+$("#player").addEventListener("ended", () => { libera(true); $("#dica").classList.add("hide"); });
+document.querySelectorAll("[data-r]").forEach(b => b.onclick = () => { resp = b.dataset.r; marca("[data-r]", b); confere(); });
+
+$("#proximo").onclick = async () => {
+  $("#proximo").disabled = true;
+  envia({sessao, clipe:clipes[i].id, resposta:resp, nota, idade:$("#idade").value, ordem:i+1});
+  i++;
+  if (i < clipes.length) return mostra();
+  $("#prog").style.width = "100%";
+  $("#teste").classList.add("hide"); $("#fim").classList.remove("hide");
+};
+
+$("#comecar").onclick = async () => {
+  $("#comecar").disabled = true;
+  try {
+    const m = await (await fetch("manifest.json", {cache:"no-store"})).json();
+    clipes = embaralha(m.clipes).slice(0, MAX_CLIPES);
+    (m.creditos || []).forEach(c => { const li = document.createElement("li"); li.textContent = c; $("#creditos").appendChild(li); });
+  } catch (e) {
+    $("#comecar").textContent = "Não foi possível carregar os áudios. Tente de novo.";
+    $("#comecar").disabled = false; return;
+  }
+  $("#inicio").classList.add("hide"); $("#teste").classList.remove("hide");
+  mostra();
+};
+</script>
+</body>
+</html>

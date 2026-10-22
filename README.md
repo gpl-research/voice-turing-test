@@ -7,4 +7,4 @@ Each listener hears up to 8 shuffled clips and answers "human or AI" plus a 1–
 - `manifest.json` lists clips without labels; the answer key is kept out of this repository.
 - Human clips come from public datasets under open licenses (credited on the final page).
 
-Part of [gpl-research](https://github.com/gpl-research).
+Part of [Forgeline Labs](https://github.com/forgeline-labs).
